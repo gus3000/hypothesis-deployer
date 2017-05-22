@@ -9,7 +9,7 @@ announce_part () { #just printing stuff
   message=$@
   size=${#message}
   cols=$(tput cols)
-  seplen=$(printf %.0f $(bc -l <<< "($cols - $size - 2)/2"))
+  seplen=$(LC_NUMERIC="en_US.UTF-8" printf %.0f $(bc -l <<< "($cols - $size - 2)/2"))
   echo ""
   for ((i=0; i<$seplen; i++));do
     echo -n "#"
