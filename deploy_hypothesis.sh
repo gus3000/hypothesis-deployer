@@ -3,8 +3,6 @@
 # vars
 ROOT_DIR="/home/$(whoami)/hypothesis/"
 
-
-
 announce_part () { #just printing stuff
   message=$@
   size=${#message}
@@ -50,12 +48,30 @@ start_hypothesis_client () {
   screen -S hypothesis_client -d -m gulp watch
 }
 
+start_requirements () {
+
+  pushd $ROOT_DIR/h
+
+  docker-compose up -d
+  #docker-compose up
+  echo "waiting for database server..."
+  while true;do
+    nc -z localhost 5432 && \
+      echo "port open" && \
+      docker-compose exec postgres psql -U postgres -c "DROP DATABASE IF EXISTS htest;" 2>/dev/null && \
+      break
+    sleep 1
+  done
+
+  popd
+}
+
 mkdir -p $ROOT_DIR
-cd $ROOT_DIR
+pushd $ROOT_DIR
 
 if [ "$H_RANGE" == "" ]; then
-  echo "Environment variable H_RANGE (local|lan|global) not set. Defaulting to lan."
-  export H_RANGE=lan
+  echo "Environment variable H_RANGE (local|lan|global) not set. Defaulting to local."
+  export H_RANGE=local
 fi
 
 
@@ -74,6 +90,7 @@ if [ "$1" == "" ];then
     software-properties-common \
     screen \
     build-essential \
+    libssl-dev \
     git \
     libevent-dev \
     libffi-dev \
@@ -98,6 +115,12 @@ if [ "$1" == "" ];then
   announce_part "Installing docker-compose"
   sudo curl -L "https://github.com/docker/compose/releases/download/1.11.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
   sudo chmod a+x /usr/local/bin/docker-compose
+
+  announce_part "Installing yarn"
+  curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+  echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+  sudo apt update -qq
+  sudo apt -y install -qq yarn
 
   announce_part "Installing nodejs"
   #curl -sL https://deb.nodesource.com/setup_0.12 | sudo bash -
@@ -127,21 +150,14 @@ elif [ "$1" == "part2" ]; then
 
   echo "currently in $(pwd)"
   echo "Starting server for the first time. This may take a while..."
-  #screen -S rabbit_postgres_elastic -d -m docker-compose up
-  docker-compose up -d
-  #docker-compose up
-  while true;do
-    nc -z localhost 5432 && \
-      echo "port open" && \
-      docker-compose exec postgres psql -U postgres -c "DROP DATABASE IF EXISTS htest;" 2>/dev/null && \
-      break
-    sleep 1
-  done
+  
+  start_requirements
+
   echo "Server launched !"
   sleep 1
   docker-compose exec postgres psql -U postgres -c "CREATE DATABASE htest;"
 
-  announce_part "Checking if everything works"
+  announce_part "Checking if h works"
   echo "This will take a while too. Buckle up !"
   make test || { echo "So apparently some of the tests failed. This is not supposed to happen, so I'll just let you solve the problem and call me back when you're finished"; exit -1; }
 
@@ -150,6 +166,7 @@ elif [ "$1" == "part2" ]; then
   rm conf/development-app.ini
   mv /tmp/blob3000 conf/development-app.ini
 
+  popd
   exec $0 part3
 
 elif [ "$1" == "part3" ]; then
@@ -157,16 +174,15 @@ elif [ "$1" == "part3" ]; then
   cd $ROOT_DIR
   git clone 'https://github.com/hypothesis/client.git'
   cd client
-  sudo npm install -g gulp-cli
   make
-
-
 
   echo "everything installed."
 
+  popd
   $0 launch
 
 elif [ "$1" == "launch" ]; then
+  start_requirements
   start_hypothesis_server
   start_hypothesis_client
 
