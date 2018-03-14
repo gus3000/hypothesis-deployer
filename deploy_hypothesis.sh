@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # vars
-ROOT_DIR="/home/$(whoami)/hypothesis/"
+ROOT_DIR="$(echo ~)/hypothesis/"
 
 announce_part () { #just printing stuff
   message=$@
@@ -165,6 +165,7 @@ elif [ "$1" == "part2" ]; then
   sed 's/host: localhost/host: 0.0.0.0/' < conf/development-app.ini > /tmp/blob3000
   rm conf/development-app.ini
   mv /tmp/blob3000 conf/development-app.ini
+  bin/hypothesis --dev authclient add --name=hyperthesis_client --authority=localhost --type=public
 
   popd
   exec $0 part3
