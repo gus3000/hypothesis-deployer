@@ -3,6 +3,10 @@
 # vars
 ROOT_DIR="$(echo ~)/hypothesis/"
 
+set -e # if a command fails, stop script
+set -u # if an rvalue is undefined then fail
+set -o pipefail # report fail through pipes
+
 announce_part () { #just printing stuff
   message=$@
   size=${#message}
@@ -66,17 +70,24 @@ start_requirements () {
   popd
 }
 
+source ~/Shared/env.list #TODO place in function
 mkdir -p $ROOT_DIR
 pushd $ROOT_DIR
 
-if [ "$H_RANGE" == "" ]; then
-  echo "Environment variable H_RANGE (local|lan|global) not set. Defaulting to local."
-  export H_RANGE=local
-fi
+
+#echo "Environment variable H_RANGE (local|lan|global) not set. Defaulting to local." &&
+export H_RANGE=${H_RANGE:=local}
+arg=${1:-} # default argument to empty string
 
 
-if [ "$1" == "" ];then
+if [ "$arg" == "" ];then
+  #announce_part "installing script requirements"
+  announce_part "making current user sudoer"  
+  export sudoUser=$(whoami)
+  su -c 'apt update -qq; apt -y upgrade -qq; apt install sudo; usermod -aG sudo $sudoUser'
+  exec sudo su -c "$0 part2" -l $(whoami) #refresh groups and start part 1
 
+elif [ "$arg" == "part1" ];then
   announce_part "Upgrading packages"
   sudo apt update -qq
   sudo apt -y upgrade -qq
@@ -139,7 +150,7 @@ if [ "$1" == "" ];then
   echo "$(whoami) is now in the docker group. Refreshing rights..."
   exec sudo su -c "$0 part2" -l $(whoami) #refresh groups and start second part
 
-elif [ "$1" == "part2" ]; then
+elif [ "$arg" == "part2" ]; then
   cd $ROOT_DIR/h
 
   announce_part "Creating virtual environment"
@@ -170,7 +181,7 @@ elif [ "$1" == "part2" ]; then
   popd
   exec $0 part3
 
-elif [ "$1" == "part3" ]; then
+elif [ "$arg" == "part3" ]; then
   announce_part "Installing hypothesis client"
   cd $ROOT_DIR
   git clone 'https://github.com/hypothesis/client.git'
@@ -182,7 +193,7 @@ elif [ "$1" == "part3" ]; then
   popd
   $0 launch
 
-elif [ "$1" == "launch" ]; then
+elif [ "$arg" == "launch" ]; then
   start_requirements
   start_hypothesis_server
   start_hypothesis_client
