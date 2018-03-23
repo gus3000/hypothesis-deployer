@@ -7,6 +7,42 @@ set -e # if a command fails, stop script
 set -u # if an rvalue is undefined then fail
 set -o pipefail # report fail through pipes
 
+setup_env () {
+  export h="http://localhost"
+
+  #SECRET_KEY={{ lookup('password', '/dev/null length=64') }}
+  export CLIENT_ID=hyperthesis_client
+  #CLIENT_SECRET={{ lookup('password', '/dev/null length=36') }}
+
+  #CLIENT_URL=https://{{ h_server_name }}/hypothesis
+  export CLIENT_URL=$h:3001/hypothesis
+
+  #H_SERVICE_URL=https://{{ h_server_name }}
+  export H_SERVICE_URL=$h:5000
+
+  #SIDEBAR_APP_URL=https://{{ h_server_name }}/app.html
+  export SIDEBAR_APP_URL=$h:5000/app.html
+
+  #H_EMBED_URL=https://{{ h_server_name }}/embed.js
+  export H_EMBED_URL=$h:5000/embed.js
+  export APP_URL=$h:5000
+  #BOUNCER_URL=https://{{ bouncer_server_name }}
+  #BROKER_URL=amqp://guest:guest@rabbit:5672//
+  export AUTHORITY=localhost
+  export CLIENT_OAUTH_ID="f9e88ccc-276c-11e8-bbe3-87c43cb5b86b"
+
+  export VIA_BASE_URL=$h:9080
+  #export ELASTICSEARCH_HOST=elasticsearch
+  #export ELASTICSEARCH_PORT=9200
+  export HYPOTHESIS_URL=$h:5000
+
+  #export STATSD_HOST=graphite
+  #export STATSD_PORT=8125
+
+  #export GRAPHITE_HOST=graphite
+
+}
+
 announce_part () { #just printing stuff
   message=$@
   size=${#message}
@@ -26,30 +62,26 @@ announce_part () { #just printing stuff
 }
 
 start_hypothesis_server () {
-    if [ "$H_RANGE" == "local" ]; then
-    export CLIENT_URL=http://localhost:3001/hypothesis
-  elif [ "$H_RANGE" == "lan" ]; then
-    export CLIENT_URL=http://192.168.1.253:3001/hypothesis
-  elif [ "$H_RANGE" == "global" ]; then
-    export CLIENT_URL=http://134.214.253.133:3001/hypothesis
-  fi
   announce_part "Launching hypothesis server"
-  cd $ROOT_DIR/h
-  source .venv/bin/activate
-  screen -S hypothesis_server -d -m make dev
+  pushd $ROOT_DIR/h
+  set +u; source .venv/bin/activate; set -u
+  screen -S h_server -d -m make dev
+  popd
 }
 
 start_hypothesis_client () {
-  if [ "$H_RANGE" == "local" ]; then
-    export H_SERVICE_URL=http://localhost:5000
-  elif [ "$H_RANGE" == "lan" ]; then
-    export H_SERVICE_URL=http://192.168.1.253:5000
-  elif [ "$H_RANGE" == "global" ]; then
-    export H_SERVICE_URL=http://134.214.253.133:5000
-  fi
   announce_part "Launching hypothesis client"
-  cd $ROOT_DIR/client/
-  screen -S hypothesis_client -d -m gulp watch
+  pushd $ROOT_DIR/client/
+  screen -S h_client -d -m gulp watch
+  popd
+}
+
+start_hypothesis_via () {
+  announce_part "Launching hypothesis via"
+  pushd $ROOT_DIR/via
+  set +u; source .venv/bin/activate; set -u
+  screen -S h_via -d -m make serve
+  popd
 }
 
 start_requirements () {
@@ -70,7 +102,7 @@ start_requirements () {
   popd
 }
 
-source ~/Shared/env.list #TODO place in function
+setup_env
 mkdir -p $ROOT_DIR
 pushd $ROOT_DIR
 
@@ -82,7 +114,7 @@ arg=${1:-} # default argument to empty string
 
 if [ "$arg" == "" ];then
   #announce_part "installing script requirements"
-  announce_part "making current user sudoer"  
+  sudo echo "User already sudoer" && exec $0 part2 || announce_part "making current user sudoer"
   export sudoUser=$(whoami)
   su -c 'apt update -qq; apt -y upgrade -qq; apt install sudo; usermod -aG sudo $sudoUser'
   exec sudo su -c "$0 part2" -l $(whoami) #refresh groups and start part 1
@@ -155,7 +187,10 @@ elif [ "$arg" == "part2" ]; then
 
   announce_part "Creating virtual environment"
   virtualenv .venv
+
+  set +u
   source .venv/bin/activate
+  set -u
 
   announce_part "Starting rabbit, postgres & elastic servers"
 
@@ -184,12 +219,20 @@ elif [ "$arg" == "part2" ]; then
 elif [ "$arg" == "part3" ]; then
   announce_part "Installing hypothesis client"
   cd $ROOT_DIR
-  git clone 'https://github.com/hypothesis/client.git'
-  cd client
+  git clone 'https://github.com/gus3000/client.git'
+  pushd client
   make
+  popd
+  
+  announce_part "Installing hypothesis via"
+  git clone "https://github.com/hypothesis/via"
+  pushd via
+  virtualenv .venv
+  set +u; source .venv/bin/activate; set -u
+  make deps
+  popd
 
   echo "everything installed."
-
   popd
   $0 launch
 
@@ -197,6 +240,7 @@ elif [ "$arg" == "launch" ]; then
   start_requirements
   start_hypothesis_server
   start_hypothesis_client
+  start_hypothesis_via
 
   announce_part "Deployment over"
 else
