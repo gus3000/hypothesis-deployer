@@ -115,7 +115,7 @@ if [ "$arg" == "" ];then
   sudo echo "User already sudoer" && exec $0 part1 || announce_part "making current user sudoer"
   export sudoUser=$(whoami)
   su -c 'apt update -qq; apt -y upgrade -qq; apt install sudo; usermod -aG sudo $sudoUser'
-  exec sudo su -c "$0 part2" -l $(whoami) #refresh groups and start part 1
+  exec sudo su -c "$0 part1" -l $(whoami) #refresh groups and start part 1
 
 elif [ "$arg" == "part1" ];then
   announce_part "Upgrading packages"
