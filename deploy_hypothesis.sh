@@ -207,11 +207,11 @@ elif [ "$arg" == "part2" ]; then
   make test || { echo "So apparently some of the tests failed. This is not supposed to happen, so I'll just let you solve the problem and call me back when you're finished"; exit -1; }
 
   announce_part "Opening server to the outside world"
-  set +u; source .venv/bin/activate; set -u
-  make .pydeps #install dependencies
+  make build/manifest.json; make .pydeps #install dependencies
   sed 's/host: localhost/host: 0.0.0.0/' < conf/development-app.ini > /tmp/blob3000
   rm conf/development-app.ini
   mv /tmp/blob3000 conf/development-app.ini
+  bin/hypothesis --dev init
   bin/hypothesis --dev authclient add --name=hyperthesis_client --authority=localhost --type=public
 
   popd
