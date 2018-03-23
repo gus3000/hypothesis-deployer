@@ -104,8 +104,6 @@ start_requirements () {
 
 setup_env
 mkdir -p $ROOT_DIR
-pushd $ROOT_DIR
-
 
 #echo "Environment variable H_RANGE (local|lan|global) not set. Defaulting to local." &&
 export H_RANGE=${H_RANGE:=local}
@@ -114,7 +112,7 @@ arg=${1:-} # default argument to empty string
 
 if [ "$arg" == "" ];then
   #announce_part "installing script requirements"
-  sudo echo "User already sudoer" && exec $0 part2 || announce_part "making current user sudoer"
+  sudo echo "User already sudoer" && exec $0 part1 || announce_part "making current user sudoer"
   export sudoUser=$(whoami)
   su -c 'apt update -qq; apt -y upgrade -qq; apt install sudo; usermod -aG sudo $sudoUser'
   exec sudo su -c "$0 part2" -l $(whoami) #refresh groups and start part 1
@@ -128,6 +126,7 @@ elif [ "$arg" == "part1" ];then
   # Wheezy:
   sudo apt -y -q install \
     apt-transport-https \
+    bc \
     ca-certificates \
     curl \
     software-properties-common \
