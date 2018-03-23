@@ -189,9 +189,7 @@ elif [ "$arg" == "part2" ]; then
   announce_part "Creating virtual environment"
   virtualenv .venv
 
-  set +u
-  source .venv/bin/activate
-  set -u
+  set +u; source .venv/bin/activate; set -u
 
   announce_part "Starting rabbit, postgres & elastic servers"
 
@@ -209,6 +207,7 @@ elif [ "$arg" == "part2" ]; then
   make test || { echo "So apparently some of the tests failed. This is not supposed to happen, so I'll just let you solve the problem and call me back when you're finished"; exit -1; }
 
   announce_part "Opening server to the outside world"
+  set +u; source .venv/bin/activate; set -u
   sed 's/host: localhost/host: 0.0.0.0/' < conf/development-app.ini > /tmp/blob3000
   rm conf/development-app.ini
   mv /tmp/blob3000 conf/development-app.ini
