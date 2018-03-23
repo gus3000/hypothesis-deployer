@@ -181,7 +181,7 @@ elif [ "$arg" == "part1" ];then
   announce_part "Setting groups"
   sudo usermod -aG docker $(whoami)
   echo "$(whoami) is now in the docker group. Refreshing rights..."
-  exec sudo su -c "$0 part2" -l $(whoami) #refresh groups and start second part
+  exec su -c "$0 part2" -l $(whoami) #refresh groups and start second part
 
 elif [ "$arg" == "part2" ]; then
   cd $ROOT_DIR/h
