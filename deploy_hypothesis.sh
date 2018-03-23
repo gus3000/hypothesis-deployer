@@ -176,7 +176,7 @@ elif [ "$arg" == "part1" ];then
   announce_part "Cloning Hypothesis"
   pushd $ROOT_DIR
   git clone https://github.com/hypothesis/h
-  pulld
+  popd
 
   announce_part "Setting groups"
   sudo usermod -aG docker $(whoami)
